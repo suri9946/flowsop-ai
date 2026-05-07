@@ -1,0 +1,15 @@
+# Root gitignore
+**/node_modules/
+**/.next/
+**/dist/
+**/build/
+**/.env
+**/.env.local
+**/*.log
+**/.vercel/
+**/coverage/
+**/package-lock.json
+**/yarn.lock
+**/pnpm-lock.yaml
+**/uploads/
+**/tmp/
