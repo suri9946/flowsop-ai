@@ -1,4 +1,5 @@
 import ffmpeg from 'fluent-ffmpeg';
+import ffmpegStatic from 'ffmpeg-static';
 import fs from 'fs';
 import path from 'path';
 
@@ -8,9 +9,11 @@ export const extractFrames = (videoPath: string, outputDir: string, fps: string 
       fs.mkdirSync(outputDir, { recursive: true });
     }
 
-    const ffmpegPath = process.env.FFMPEG_PATH;
-    if (ffmpegPath) {
-      ffmpeg.setFfmpegPath(ffmpegPath);
+    // Use FFMPEG_PATH env var if set and exists, otherwise fall back to ffmpeg-static (works on Windows)
+    const envPath = process.env.FFMPEG_PATH;
+    const resolvedPath = (envPath && fs.existsSync(envPath)) ? envPath : ffmpegStatic;
+    if (resolvedPath) {
+      ffmpeg.setFfmpegPath(resolvedPath);
     }
 
     const outputPattern = path.join(outputDir, 'frame_%04d.png');

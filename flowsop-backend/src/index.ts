@@ -1,11 +1,11 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import sopRoutes from './routes/sops';
 import exportRoutes from './routes/export';
-
-dotenv.config();
 
 const app = express();
 const port = parseInt(process.env.PORT || '4000', 10);
