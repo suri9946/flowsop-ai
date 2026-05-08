@@ -11,7 +11,16 @@ export const extractFrames = (videoPath: string, outputDir: string, fps: string 
 
     // Use FFMPEG_PATH env var if set and exists, otherwise fall back to ffmpeg-static (works on Windows)
     const envPath = process.env.FFMPEG_PATH;
-    const resolvedPath = (envPath && fs.existsSync(envPath)) ? envPath : ffmpegStatic;
+    let resolvedPath = ffmpegStatic;
+    
+    if (envPath && fs.existsSync(envPath)) {
+      resolvedPath = envPath;
+    } else if (!ffmpegStatic) {
+      // Fallback for some Linux environments if ffmpeg is in PATH
+      resolvedPath = 'ffmpeg';
+    }
+
+    console.log(`Using FFMPEG path: ${resolvedPath}`);
     if (resolvedPath) {
       ffmpeg.setFfmpegPath(resolvedPath);
     }
