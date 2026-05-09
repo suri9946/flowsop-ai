@@ -6,6 +6,7 @@ import cors from 'cors';
 import authRoutes from './routes/auth';
 import sopRoutes from './routes/sops';
 import exportRoutes from './routes/export';
+import paymentRoutes from './routes/payments';
 
 const app = express();
 const port = parseInt(process.env.PORT || '4000', 10);
@@ -48,6 +49,7 @@ app.use(express.json());
 app.use('/auth', authRoutes);
 app.use('/sops', sopRoutes);
 app.use('/export', exportRoutes);
+app.use('/payments', paymentRoutes);
 
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });

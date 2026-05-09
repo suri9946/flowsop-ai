@@ -22,7 +22,21 @@ export default function Signup() {
   };
 
   const handleGoogle = async () => {
-    await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/dashboard` } });
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({ 
+        provider: 'google', 
+        options: { redirectTo: `${window.location.origin}/dashboard` } 
+      });
+      if (error) {
+        if (error.message.includes("not enabled")) {
+          setError("Google Login is not enabled for this project yet. Please enable it in your Supabase Dashboard under Authentication -> Providers.");
+        } else {
+          setError(error.message);
+        }
+      }
+    } catch (err: any) {
+      setError(err.message);
+    }
   };
 
   return (

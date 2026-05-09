@@ -9,20 +9,36 @@ import { motion } from 'framer-motion';
 export default function Dashboard() {
   const [sops, setSops] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
-    api.getSops()
-      .then(data => {
-        setSops(data);
+    const initDashboard = async () => {
+      try {
+        const token = await api.getAuthToken();
+        const [sopsData, userRes] = await Promise.all([
+          api.getSops(),
+          fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/auth/me`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+        ]);
+        const userData = await userRes.json();
+        setSops(sopsData);
+        setProfile(userData.profile);
+      } catch (err) {
+        console.error('Dashboard init error:', err);
+      } finally {
         setLoading(false);
-      })
-      .catch(console.error);
+      }
+    };
+    initDashboard();
   }, []);
+
+
 
   const stats = [
     { label: "Total SOPs", value: sops.length, icon: FileText },
     { label: "Hours Saved", value: Math.round(sops.length * 1.5), icon: Zap },
-    { label: "Generations Left", value: Math.max(0, 3 - sops.length), icon: Settings2 },
+    { label: "Generations Left", value: profile?.credits ?? 0, icon: Settings2 },
   ];
 
   return (
@@ -81,7 +97,7 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sops.slice(0, 3).map((sop, idx) => (
+            {sops.map((sop, idx) => (
               <SopCard key={sop.id} sop={sop} index={idx} />
             ))}
           </div>

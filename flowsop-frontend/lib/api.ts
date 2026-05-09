@@ -10,6 +10,10 @@ const getAuthHeaders = async () => {
 };
 
 export const api = {
+  getAuthToken: async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token || '';
+  },
   uploadVideo: async (file: File) => {
     const headers = await getAuthHeaders();
     const formData = new FormData();

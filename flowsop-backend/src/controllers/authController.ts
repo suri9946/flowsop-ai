@@ -58,10 +58,29 @@ export const logout = async (req: Request, res: Response) => {
 export const getMe = async (req: Request, res: Response) => {
   try {
     // Provided by auth middleware
-    if (!req.user) {
-      return res.status(401).json({ error: 'Not authenticated' });
+    // Fetch or create profile
+    let { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', req.user.id)
+      .single();
+
+    if (profileError && profileError.code === 'PGRST116') {
+      // Profile doesn't exist, create it
+      const { data: newProfile, error: createError } = await supabase
+        .from('profiles')
+        .insert({ id: req.user.id, credits: 3 })
+        .select()
+        .single();
+      
+      if (createError) {
+        console.error('Error creating profile:', createError);
+      } else {
+        profile = newProfile;
+      }
     }
-    res.json({ user: req.user });
+
+    res.json({ user: req.user, profile: profile || { credits: 3, is_pro: false } });
   } catch (error: any) {
     console.error('GetMe error:', error);
     res.status(500).json({ error: 'Failed to get user info' });

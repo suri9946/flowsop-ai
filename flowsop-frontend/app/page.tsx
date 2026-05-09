@@ -29,7 +29,7 @@ export default function Home() {
         <div className="flex gap-6">
           <a href="#" className="hover:text-white transition">Privacy</a>
           <a href="#" className="hover:text-white transition">Terms</a>
-          <a href="#" className="hover:text-white transition">Contact</a>
+          <a href="mailto:forzoo4u@gmail.com" className="hover:text-white transition">Contact</a>
         </div>
       </footer>
     </main>

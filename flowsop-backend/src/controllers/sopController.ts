@@ -20,6 +20,18 @@ export const uploadSop = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'No video file provided' });
     }
 
+    // Step 1: Check credits
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('credits')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError) throw profileError;
+    if (!profile || profile.credits <= 0) {
+      return res.status(403).json({ error: 'Insufficient credits. Please upgrade to Pro.' });
+    }
+
     const jobId = uuidv4();
     const videoExt = path.extname(file.originalname);
     const videoDestPath = `${user.id}/${jobId}${videoExt}`;
@@ -72,6 +84,9 @@ export const uploadSop = async (req: Request, res: Response) => {
     }).eq('id', dbSop.id).select().single();
 
     if (updateError) throw updateError;
+
+    // Step 9: Deduct credit
+    await supabase.rpc('decrement_credits', { user_id: user.id });
 
     // Cleanup temp files
     if (uploadedFile?.path && fs.existsSync(uploadedFile.path)) {

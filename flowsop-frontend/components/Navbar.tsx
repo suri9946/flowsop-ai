@@ -1,6 +1,6 @@
 "use client";
 import Link from 'next/link';
-import { Twitter, Github, Menu } from 'lucide-react';
+import { Twitter, Menu } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function Navbar() {
@@ -30,9 +30,7 @@ export default function Navbar() {
         <Link href="https://twitter.com" className="w-10 h-10 flex items-center justify-center rounded-full liquid-glass hover:scale-105 transition">
           <Twitter size={18} className="text-white/80" />
         </Link>
-        <Link href="https://github.com" className="w-10 h-10 flex items-center justify-center rounded-full liquid-glass hover:scale-105 transition">
-          <Github size={18} className="text-white/80" />
-        </Link>
+
         <Link href="/login" className="ml-2 px-5 py-2 rounded-full bg-white text-black text-sm font-medium hover:bg-white/90 transition">
           Login
         </Link>
