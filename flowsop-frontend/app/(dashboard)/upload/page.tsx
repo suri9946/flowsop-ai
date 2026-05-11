@@ -1,5 +1,5 @@
 "use client";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import UploadZone from '@/components/UploadZone';
 import ProcessingStages from '@/components/ProcessingStages';
@@ -9,7 +9,14 @@ export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentStage, setCurrentStage] = useState(0);
+  const [sops, setSops] = useState<any[]>([]);
+  const [selectedParentId, setSelectedParentId] = useState<string>("");
   const router = useRouter();
+
+  useEffect(() => {
+    api.getSops().then(setSops).catch(console.error);
+  }, []);
+
 
   const handleUpload = async () => {
     if (!file) return;
@@ -23,7 +30,8 @@ export default function UploadPage() {
         setCurrentStage(prev => (prev < 5 ? prev + 1 : prev));
       }, 3000);
 
-      const result = await api.uploadVideo(file);
+      const result = await api.uploadVideo(file, selectedParentId || undefined);
+
       clearInterval(stageInterval);
       setCurrentStage(6); // Finalizing
       
@@ -31,12 +39,18 @@ export default function UploadPage() {
         router.push(`/sop/${result.id}`);
       }, 1000);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert("Failed to process video");
+      if (error.message.includes('Insufficient credits')) {
+        alert("You've used all your free generations. Please upgrade to Pro to continue.");
+        router.push('/settings'); // Assuming pricing/pro upgrade is in settings or there's a billing link
+      } else {
+        alert(error.message || "Failed to process video");
+      }
       setIsProcessing(false);
       setCurrentStage(0);
     }
+
   };
 
   return (
@@ -49,7 +63,23 @@ export default function UploadPage() {
       {!isProcessing ? (
         <div className="space-y-6">
           <UploadZone onFileSelect={setFile} file={file} onRemove={() => setFile(null)} />
+          
+          <div className="p-6 rounded-3xl bg-white/[0.02] border border-white/5 space-y-3">
+            <label className="text-xs font-medium text-white/40 uppercase tracking-wider">Updating an existing SOP? Select it</label>
+            <select 
+              value={selectedParentId}
+              onChange={(e) => setSelectedParentId(e.target.value)}
+              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white/80 focus:outline-none focus:ring-1 focus:ring-white/20 appearance-none"
+            >
+              <option value="">Start from scratch (v1)</option>
+              {sops.map(sop => (
+                <option key={sop.id} value={sop.id}>{sop.title} (v{sop.version || 1})</option>
+              ))}
+            </select>
+          </div>
+
           {file && (
+
             <div className="flex justify-center">
               <button 
                 onClick={handleUpload}

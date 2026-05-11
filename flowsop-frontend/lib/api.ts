@@ -14,10 +14,13 @@ export const api = {
     const { data: { session } } = await supabase.auth.getSession();
     return session?.access_token || '';
   },
-  uploadVideo: async (file: File) => {
+  uploadVideo: async (file: File, parentSopId?: string) => {
     const headers = await getAuthHeaders();
     const formData = new FormData();
     formData.append('video', file);
+    if (parentSopId) {
+      formData.append('parent_sop_id', parentSopId);
+    }
 
     const response = await fetch(`${API_URL}/sops/upload`, {
       method: 'POST',
@@ -26,6 +29,7 @@ export const api = {
       },
       body: formData,
     });
+
     if (!response.ok) {
       const err = await response.json();
       throw new Error(err.error || 'Failed to upload video');
@@ -67,5 +71,13 @@ export const api = {
     a.href = url;
     a.download = `SOP_${id}.pdf`;
     a.click();
+  },
+  getProfile: async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    if (error && error.code !== 'PGRST116') throw error;
+    return data || { credits: 3, is_pro: false };
   }
 };
+

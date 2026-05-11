@@ -7,10 +7,42 @@ import { uploadFile } from '../services/storageService';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
+import { makeOpenRouterRequest } from '../lib/openrouter';
+
+const createVersion = async (parentSop: any, ocrResults: any[]) => {
+  let ocrText = "OCR Text by Frame:\n";
+  ocrResults.forEach(r => {
+    if (r.text?.trim()) {
+      ocrText += `[frameIndex ${r.frameIndex}]: ${r.text}\n`;
+    }
+  });
+
+  const systemPrompt = "You are comparing two versions of the same workflow SOP.";
+  const userPrompt = `Old steps: ${JSON.stringify(parentSop.steps)}. New OCR text: ${ocrText}. Return ONLY valid JSON: { steps: [...], checklist: [...], title, summary, estimatedTime, tags, diff: [{ stepNumber, status: 'unchanged'|'modified'|'added'|'removed', changeNote: string }] }`;
+
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: userPrompt }
+  ];
+
+  const responseText = await makeOpenRouterRequest(messages);
+  const rawContent = responseText.choices[0].message.content;
+  let jsonContent = rawContent;
+  if (jsonContent.startsWith('```json')) {
+    jsonContent = jsonContent.replace(/```json\n?/, '').replace(/```\n?$/, '');
+  } else if (jsonContent.startsWith('```')) {
+    jsonContent = jsonContent.replace(/```\n?/, '').replace(/```\n?$/, '');
+  }
+  
+  return JSON.parse(jsonContent);
+};
+
 
 export const uploadSop = async (req: Request, res: Response) => {
   const uploadedFile = req.file;
+  const { parent_sop_id } = req.body;
   let tmpJobDir: string | null = null;
+
 
   try {
     const user = req.user;
@@ -23,14 +55,22 @@ export const uploadSop = async (req: Request, res: Response) => {
     // Step 1: Check credits
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('credits')
+      .select('credits, is_pro')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
     if (profileError) throw profileError;
-    if (!profile || profile.credits <= 0) {
-      return res.status(403).json({ error: 'Insufficient credits. Please upgrade to Pro.' });
+    
+    const credits = profile?.credits ?? 3;
+    const isPro = profile?.is_pro ?? false;
+
+    if (!isPro && credits <= 0) {
+      return res.status(403).json({ 
+        error: 'Insufficient credits',
+        message: 'You have used all your free SOP generations. Please upgrade to Pro for unlimited access.'
+      });
     }
+
 
     const jobId = uuidv4();
     const videoExt = path.extname(file.originalname);
@@ -68,9 +108,30 @@ export const uploadSop = async (req: Request, res: Response) => {
     }
 
     // Step 6 & 7: AI Service
-    const generatedSop = await generateSop(ocrResults, screenshotUrls);
+    let generatedSop;
+    let diffResult = null;
+
+    if (parent_sop_id) {
+      const { data: parentSop, error: parentError } = await supabase
+        .from('sops')
+        .select('*')
+        .eq('id', parent_sop_id)
+        .single();
+      
+      if (!parentError && parentSop) {
+        generatedSop = await createVersion(parentSop, ocrResults);
+        diffResult = generatedSop.diff;
+      } else {
+        generatedSop = await generateSop(ocrResults, screenshotUrls);
+      }
+    } else {
+      generatedSop = await generateSop(ocrResults, screenshotUrls);
+    }
 
     // Step 8: Update DB
+    const { data: parentData } = parent_sop_id ? await supabase.from('sops').select('version').eq('id', parent_sop_id).single() : { data: null };
+    const newVersion = parentData ? (parentData.version || 1) + 1 : 1;
+
     const { data: finalSop, error: updateError } = await supabase.from('sops').update({
       title: generatedSop.title,
       summary: generatedSop.summary,
@@ -80,8 +141,12 @@ export const uploadSop = async (req: Request, res: Response) => {
       checklist: generatedSop.checklist,
       video_url: videoUrl,
       screenshot_urls: screenshotUrls,
-      status: 'completed'
+      status: 'completed',
+      version: newVersion,
+      parent_sop_id: parent_sop_id || null,
+      diff_result: diffResult
     }).eq('id', dbSop.id).select().single();
+
 
     if (updateError) throw updateError;
 

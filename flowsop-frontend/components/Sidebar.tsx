@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, FileText, UploadCloud, FileType, Settings } from 'lucide-react';
 import clsx from 'clsx';
+import { useEffect, useState } from 'react';
+import { api } from '@/lib/api';
 
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -14,6 +16,16 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [profile, setProfile] = useState<any>(null);
+
+  useEffect(() => {
+    api.getProfile().then(setProfile).catch(console.error);
+  }, []);
+
+  const credits = profile?.credits ?? 3;
+  const isPro = profile?.is_pro ?? false;
+  const maxCredits = 3;
+  const usagePercent = isPro ? 100 : Math.min(100, ((maxCredits - credits) / maxCredits) * 100);
 
   return (
     <div className="w-64 border-r border-white/10 bg-[#050505] hidden md:flex flex-col">
@@ -46,11 +58,13 @@ export default function Sidebar() {
       
       <div className="mt-auto p-6">
         <div className="p-4 rounded-2xl liquid-glass border border-white/10">
-          <p className="text-xs text-white/50 mb-2">Plan: <span className="text-white">Free</span></p>
+          <p className="text-xs text-white/50 mb-2">Plan: <span className="text-white">{isPro ? 'Pro' : 'Free'}</span></p>
           <div className="w-full h-1.5 bg-white/10 rounded-full mb-2 overflow-hidden">
-            <div className="h-full bg-accent w-[30%]" />
+            <div className={`h-full transition-all duration-500 ${isPro ? 'bg-blue-500' : 'bg-accent'}`} style={{ width: `${isPro ? 100 : usagePercent}%` }} />
           </div>
-          <p className="text-[10px] text-white/40">1/3 SOPs generated this month</p>
+          <p className="text-[10px] text-white/40">
+            {isPro ? 'Unlimited SOPs' : `${maxCredits - credits}/${maxCredits} SOPs generated`}
+          </p>
         </div>
       </div>
     </div>
